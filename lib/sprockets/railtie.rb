@@ -10,37 +10,37 @@ require 'sprockets/rails/deprecator'
 require 'sprockets/rails/sourcemapping_url_processor'
 require 'sprockets/rails/context'
 require 'sprockets/rails/helper'
-require 'sprockets/rails/quiet_assets'
+require 'sprockets/rails/quiet_sprockets'
 require 'sprockets/rails/route_wrapper'
 require 'sprockets/rails/version'
 require 'set'
 
 module Rails
   class Application
-    # Hack: We need to remove Rails' built in config.assets so we can
+    # Hack: We need to remove Rails' built in config.sprockets so we can
     # do our own thing.
     class Configuration
-      remove_possible_method :assets
+      remove_possible_method :sprockets
     end
 
-    # Undefine Rails' assets method before redefining it, to avoid warnings.
-    remove_possible_method :assets
-    remove_possible_method :assets=
+    # Undefine Rails' sprockets method before redefining it, to avoid warnings.
+    remove_possible_method :sprockets
+    remove_possible_method :sprockets=
 
     # Returns Sprockets::Environment for app config.
-    attr_accessor :assets
+    attr_accessor :sprockets
 
     # Returns Sprockets::Manifest for app config.
-    attr_accessor :assets_manifest
+    attr_accessor :sprockets_manifest
 
     # Called from asset helpers to alert you if you reference an asset URL that
     # isn't precompiled and hence won't be available in production.
     def asset_precompiled?(logical_path)
-      if precompiled_assets.include?(logical_path)
+      if precompiled_sprockets.include?(logical_path)
         true
       elsif !config.cache_classes
         # Check to see if precompile list has been updated
-        precompiled_assets(true).include?(logical_path)
+        precompiled_sprockets(true).include?(logical_path)
       else
         false
       end
@@ -49,9 +49,9 @@ module Rails
     # Lazy-load the precompile list so we don't cause asset compilation at app
     # boot time, but ensure we cache the list so we don't recompute it for each
     # request or test case.
-    def precompiled_assets(clear_cache = false)
-      @precompiled_assets = nil if clear_cache
-      @precompiled_assets ||= assets_manifest.find(config.assets.precompile).map(&:logical_path).to_set
+    def precompiled_sprockets(clear_cache = false)
+      @precompiled_sprockets = nil if clear_cache
+      @precompiled_sprockets ||= sprockets_manifest.find(config.sprockets.precompile).map(&:logical_path).to_set
     end
   end
 end
@@ -62,8 +62,8 @@ module Sprockets
 
     class ManifestNeededError < StandardError
       def initialize
-        msg = "Expected to find a manifest file in `app/assets/config/manifest.js`\n" +
-        "But did not, please create this file and use it to link any assets that need\n" +
+        msg = "Expected to find a manifest file in `app/sprockets/config/manifest.js`\n" +
+        "But did not, please create this file and use it to link any sprockets that need\n" +
         "to be rendered by your app:\n\n" +
         "Example:\n" +
         "  //= link_tree ../images\n"  +
@@ -76,7 +76,7 @@ module Sprockets
     end
 
     LOOSE_APP_ASSETS = lambda do |logical_path, filename|
-      filename.start_with?(::Rails.root.join("app/assets").to_s) &&
+      filename.start_with?(::Rails.root.join("app/sprockets").to_s) &&
       !['.js', '.css', ''].include?(File.extname(logical_path))
     end
 
@@ -86,38 +86,38 @@ module Sprockets
       end
     end
 
-    ::Rails::Engine.initializer :append_assets_path, :group => :all do |app|
-      app.config.assets.paths.unshift(*paths["vendor/assets"].existent_directories)
-      app.config.assets.paths.unshift(*paths["lib/assets"].existent_directories)
-      app.config.assets.paths.unshift(*paths["app/assets"].existent_directories)
+    ::Rails::Engine.initializer :append_sprockets_path, :group => :all do |app|
+      app.config.sprockets.paths.unshift(*paths["vendor/sprockets"].existent_directories)
+      app.config.sprockets.paths.unshift(*paths["lib/sprockets"].existent_directories)
+      app.config.sprockets.paths.unshift(*paths["app/sprockets"].existent_directories)
     end
 
-    config.assets = OrderedOptions.new
-    config.assets._blocks                    = []
-    config.assets.paths                      = []
-    config.assets.precompile                 = []
-    config.assets.prefix                     = "/assets"
-    config.assets.manifest                   = nil
-    config.assets.quiet                      = false
-    config.assets.resolve_assets_in_css_urls = true
+    config.sprockets = OrderedOptions.new
+    config.sprockets._blocks                    = []
+    config.sprockets.paths                      = []
+    config.sprockets.precompile                 = []
+    config.sprockets.prefix                     = "/sprockets"
+    config.sprockets.manifest                   = nil
+    config.sprockets.quiet                      = false
+    config.sprockets.resolve_sprockets_in_css_urls = true
 
     initializer :set_default_precompile do |app|
       if using_sprockets4?
-        raise ManifestNeededError unless ::Rails.root.join("app/assets/config/manifest.js").exist?
-        app.config.assets.precompile += %w( manifest.js )
+        raise ManifestNeededError unless ::Rails.root.join("app/sprockets/config/manifest.js").exist?
+        app.config.sprockets.precompile += %w( manifest.js )
       else
-        app.config.assets.precompile += [LOOSE_APP_ASSETS, /(?:\/|\\|\A)application\.(css|js)$/]
+        app.config.sprockets.precompile += [LOOSE_APP_ASSETS, /(?:\/|\\|\A)application\.(css|js)$/]
       end
     end
 
-    initializer :quiet_assets do |app|
-      if app.config.assets.quiet
-        app.middleware.insert_before ::Rails::Rack::Logger, ::Sprockets::Rails::QuietAssets
+    initializer :quiet_sprockets do |app|
+      if app.config.sprockets.quiet
+        app.middleware.insert_before ::Rails::Rack::Logger, ::Sprockets::Rails::QuietSprockets
       end
     end
 
     initializer :asset_url_processor do |app|
-      if app.config.assets.resolve_assets_in_css_urls
+      if app.config.sprockets.resolve_sprockets_in_css_urls
         Sprockets.register_postprocessor "text/css", ::Sprockets::Rails::AssetUrlProcessor
       end
     end
@@ -130,30 +130,30 @@ module Sprockets
       app.deprecators[:sprockets_rails] = Sprockets::Rails.deprecator if app.respond_to?(:deprecators)
     end
 
-    config.assets.version     = ""
-    config.assets.debug       = false
-    config.assets.compile     = true
-    config.assets.digest      = true
-    config.assets.cache_limit = 50.megabytes
-    config.assets.gzip        = true
-    config.assets.check_precompiled_asset = true
-    config.assets.unknown_asset_fallback  = true
+    config.sprockets.version     = ""
+    config.sprockets.debug       = false
+    config.sprockets.compile     = true
+    config.sprockets.digest      = true
+    config.sprockets.cache_limit = 50.megabytes
+    config.sprockets.gzip        = true
+    config.sprockets.check_precompiled_asset = true
+    config.sprockets.unknown_asset_fallback  = true
 
-    config.assets.configure do |env|
-      config.assets.paths.each { |path| env.append_path(path) }
+    config.sprockets.configure do |env|
+      config.sprockets.paths.each { |path| env.append_path(path) }
     end
 
-    config.assets.configure do |env|
+    config.sprockets.configure do |env|
       env.context_class.send :include, ::Sprockets::Rails::Context
-      env.context_class.assets_prefix = config.assets.prefix
-      env.context_class.digest_assets = config.assets.digest
+      env.context_class.sprockets_prefix = config.sprockets.prefix
+      env.context_class.digest_sprockets = config.sprockets.digest
       env.context_class.config        = config.action_controller
     end
 
-    config.assets.configure do |env|
+    config.sprockets.configure do |env|
       env.cache = Sprockets::Cache::FileStore.new(
-        "#{env.root}/tmp/cache/assets",
-        config.assets.cache_limit,
+        "#{env.root}/tmp/cache/sprockets",
+        config.sprockets.cache_limit,
         env.logger
       )
     end
@@ -162,16 +162,16 @@ module Sprockets
       ::Rails.env.to_s
     end
 
-    config.assets.configure do |env|
+    config.sprockets.configure do |env|
       env.depend_on 'rails-env'
     end
 
-    config.assets.configure do |env|
-      env.version = config.assets.version
+    config.sprockets.configure do |env|
+      env.version = config.sprockets.version
     end
 
-    config.assets.configure do |env|
-      env.gzip = config.assets.gzip if env.respond_to?(:gzip=)
+    config.sprockets.configure do |env|
+      env.gzip = config.sprockets.gzip if env.respond_to?(:gzip=)
     end
 
     rake_tasks do |app|
@@ -189,15 +189,15 @@ module Sprockets
 
       config = app.config
 
-      # Run app.assets.configure blocks
-      config.assets._blocks.each do |block|
+      # Run app.sprockets.configure blocks
+      config.sprockets._blocks.each do |block|
         block.call(env)
       end
 
       # Set compressors after the configure blocks since they can
       # define new compressors and we only accept existent compressors.
-      env.js_compressor  = config.assets.js_compressor
-      env.css_compressor = config.assets.css_compressor
+      env.js_compressor  = config.sprockets.js_compressor
+      env.css_compressor = config.sprockets.css_compressor
 
       # No more configuration changes at this point.
       # With cache classes on, Sprockets won't check the FS when files
@@ -212,52 +212,52 @@ module Sprockets
 
     def self.build_manifest(app)
       config = app.config
-      path = File.join(config.paths['public'].first, config.assets.prefix)
-      Sprockets::Manifest.new(app.assets, path, config.assets.manifest)
+      path = File.join(config.paths['public'].first, config.sprockets.prefix)
+      Sprockets::Manifest.new(app.sprockets, path, config.sprockets.manifest)
     end
 
     config.after_initialize do |app|
       config = app.config
 
-      if config.assets.compile
-        app.assets = self.build_environment(app, true)
+      if config.sprockets.compile
+        app.sprockets = self.build_environment(app, true)
         app.routes.prepend do
-          mount app.assets, at: config.assets.prefix
+          mount app.sprockets, at: config.sprockets.prefix
         end
       end
 
-      app.assets_manifest = build_manifest(app)
+      app.sprockets_manifest = build_manifest(app)
 
-      if config.assets.resolve_with.nil?
-        config.assets.resolve_with = []
-        config.assets.resolve_with << :manifest if config.assets.digest && !config.assets.debug
-        config.assets.resolve_with << :environment if config.assets.compile
+      if config.sprockets.resolve_with.nil?
+        config.sprockets.resolve_with = []
+        config.sprockets.resolve_with << :manifest if config.sprockets.digest && !config.sprockets.debug
+        config.sprockets.resolve_with << :environment if config.sprockets.compile
       end
 
       ActionDispatch::Routing::RouteWrapper.class_eval do
-        class_attribute :assets_prefix
+        class_attribute :sprockets_prefix
 
         prepend Sprockets::Rails::RouteWrapper
 
-        self.assets_prefix = config.assets.prefix
+        self.sprockets_prefix = config.sprockets.prefix
       end
 
       ActiveSupport.on_load(:action_view) do
         include Sprockets::Rails::Helper
 
         # Copy relevant config to AV context
-        self.debug_assets      = config.assets.debug
-        self.digest_assets     = config.assets.digest
-        self.assets_prefix     = config.assets.prefix
-        self.assets_precompile = config.assets.precompile
+        self.debug_sprockets      = config.sprockets.debug
+        self.digest_sprockets     = config.sprockets.digest
+        self.sprockets_prefix     = config.sprockets.prefix
+        self.sprockets_precompile = config.sprockets.precompile
 
-        self.assets_environment = app.assets
-        self.assets_manifest = app.assets_manifest
+        self.sprockets_environment = app.sprockets
+        self.sprockets_manifest = app.sprockets_manifest
 
-        self.resolve_assets_with = config.assets.resolve_with
+        self.resolve_sprockets_with = config.sprockets.resolve_with
 
-        self.check_precompiled_asset = config.assets.check_precompiled_asset
-        self.unknown_asset_fallback  = config.assets.unknown_asset_fallback
+        self.check_precompiled_asset = config.sprockets.check_precompiled_asset
+        self.unknown_asset_fallback  = config.sprockets.unknown_asset_fallback
         # Expose the app precompiled asset check to the view
         self.precompiled_asset_checker = -> logical_path { app.asset_precompiled? logical_path }
       end

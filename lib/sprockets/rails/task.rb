@@ -15,9 +15,9 @@ module Sprockets
 
       def environment
         if app
-          # Use initialized app.assets or force build an environment if
-          # config.assets.compile is disabled
-          app.assets || Sprockets::Railtie.build_environment(app)
+          # Use initialized app.sprockets or force build an environment if
+          # config.sprockets.compile is disabled
+          app.sprockets || Sprockets::Railtie.build_environment(app)
         else
           super
         end
@@ -26,15 +26,15 @@ module Sprockets
       def output
         if app
           config = app.config
-          File.join(config.paths['public'].first, config.assets.prefix)
+          File.join(config.paths['public'].first, config.sprockets.prefix)
         else
           super
         end
       end
 
-      def assets
+      def sprockets
         if app
-          app.config.assets.precompile
+          app.config.sprockets.precompile
         else
           super
         end
@@ -42,14 +42,14 @@ module Sprockets
 
       def manifest
         if app
-          Sprockets::Manifest.new(index, output, app.config.assets.manifest)
+          Sprockets::Manifest.new(index, output, app.config.sprockets.manifest)
         else
           super
         end
       end
 
       def define
-        namespace :assets do
+        namespace :sprockets do
           %w( environment precompile clean clobber ).each do |task|
             Rake::Task[task].clear if Rake::Task.task_defined?(task)
           end
@@ -61,21 +61,21 @@ module Sprockets
             Rake::Task['environment'].invoke
           end
 
-          desc "Compile all the assets named in config.assets.precompile"
+          desc "Compile all the sprockets named in config.sprockets.precompile"
           task :precompile => :environment do
             with_logger do
-              manifest.compile(assets)
+              manifest.compile(sprockets)
             end
           end
 
-          desc "Remove old compiled assets"
+          desc "Remove old compiled sprockets"
           task :clean, [:keep] => :environment do |t, args|
             with_logger do
               manifest.clean(Integer(args.keep || self.keep))
             end
           end
 
-          desc "Remove compiled assets"
+          desc "Remove compiled sprockets"
           task :clobber => :environment do
             with_logger do
               manifest.clobber

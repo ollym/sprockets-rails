@@ -15,13 +15,13 @@ module Sprockets
           msg =
           if using_sprockets4?
             "Asset `#{ source }` was not declared to be precompiled in production.\n" +
-            "Declare links to your assets in `app/assets/config/manifest.js`.\n\n" +
+            "Declare links to your sprockets in `app/sprockets/config/manifest.js`.\n\n" +
             "  //= link #{ source }\n\n" +
             "and restart your server"
           else
             "Asset was not declared to be precompiled in production.\n" +
-            "Add `Rails.application.config.assets.precompile += " +
-            "%w( #{source} )` to `config/initializers/assets.rb` and " +
+            "Add `Rails.application.config.sprockets.precompile += " +
+            "%w( #{source} )` to `config/initializers/sprockets.rb` and " +
             "restart your server"
           end
           super(msg)
@@ -33,10 +33,10 @@ module Sprockets
       include Sprockets::Rails::Utils
 
       VIEW_ACCESSORS = [
-        :assets_environment, :assets_manifest,
-        :assets_precompile, :precompiled_asset_checker,
-        :assets_prefix, :digest_assets, :debug_assets,
-        :resolve_assets_with, :check_precompiled_asset,
+        :sprockets_environment, :sprockets_manifest,
+        :sprockets_precompile, :precompiled_asset_checker,
+        :sprockets_prefix, :digest_sprockets, :debug_sprockets,
+        :resolve_sprockets_with, :check_precompiled_asset,
         :unknown_asset_fallback
       ]
 
@@ -44,12 +44,12 @@ module Sprockets
         klass.class_attribute(*VIEW_ACCESSORS)
 
         klass.class_eval do
-          remove_method :assets_environment
-          def assets_environment
-            if instance_variable_defined?(:@assets_environment)
-              @assets_environment = @assets_environment.cached
-            elsif env = self.class.assets_environment
-              @assets_environment = env.cached
+          remove_method :sprockets_environment
+          def sprockets_environment
+            if instance_variable_defined?(:@sprockets_environment)
+              @sprockets_environment = @sprockets_environment.cached
+            elsif env = self.class.sprockets_environment
+              @sprockets_environment = env.cached
             else
               nil
             end
@@ -61,10 +61,10 @@ module Sprockets
         obj.singleton_class.class_eval do
           attr_accessor(*VIEW_ACCESSORS)
 
-          remove_method :assets_environment
-          def assets_environment
-            if env = @assets_environment
-              @assets_environment = env.cached
+          remove_method :sprockets_environment
+          def sprockets_environment
+            if env = @sprockets_environment
+              @sprockets_environment = env.cached
             else
               nil
             end
@@ -78,7 +78,7 @@ module Sprockets
         debug = options[:debug]
 
         if asset_path = resolve_asset_path(path, debug)
-          File.join(assets_prefix || "/", legacy_debug_path(asset_path, debug))
+          File.join(sprockets_prefix || "/", legacy_debug_path(asset_path, debug))
         else
           message =  "The asset #{ path.inspect } is not present in the asset pipeline.\n"
           raise AssetNotFound, message unless unknown_asset_fallback
@@ -99,7 +99,7 @@ module Sprockets
       # Returns nil if it's an asset we don't know about.
       def resolve_asset_path(path, allow_non_precompiled = false) #:nodoc:
         resolve_asset do |resolver|
-          resolver.asset_path path, digest_assets, allow_non_precompiled
+          resolver.asset_path path, digest_sprockets, allow_non_precompiled
         end
       end
 
@@ -136,7 +136,7 @@ module Sprockets
         options = sources.extract_options!.stringify_keys
         integrity = compute_integrity?(options)
 
-        if options["debug"] != false && request_debug_assets?
+        if options["debug"] != false && request_debug_sprockets?
           sources.map { |source|
             if asset = lookup_debug_asset(source, type: :javascript)
               if asset.respond_to?(:to_a)
@@ -165,7 +165,7 @@ module Sprockets
         options = sources.extract_options!.stringify_keys
         integrity = compute_integrity?(options)
 
-        if options["debug"] != false && request_debug_assets?
+        if options["debug"] != false && request_debug_sprockets?
           sources.map { |source|
             if asset = lookup_debug_asset(source, type: :stylesheet)
               if asset.respond_to?(:to_a)
@@ -214,8 +214,8 @@ module Sprockets
 
         # Enable split asset debugging. Eventually will be deprecated
         # and replaced by source maps in Sprockets 3.x.
-        def request_debug_assets?
-          debug_assets || (defined?(controller) && controller && params[:debug_assets])
+        def request_debug_sprockets?
+          debug_sprockets || (defined?(controller) && controller && params[:debug_sprockets])
         rescue # FIXME: what exactly are we rescuing?
           false
         end
@@ -245,10 +245,10 @@ module Sprockets
           end
         end
 
-        # List of resolvers in `config.assets.resolve_with` order.
+        # List of resolvers in `config.sprockets.resolve_with` order.
         def asset_resolver_strategies
           @asset_resolver_strategies ||=
-            Array(resolve_assets_with).map do |name|
+            Array(resolve_sprockets_with).map do |name|
               HelperAssetResolvers[name].new(self)
             end
         end
@@ -279,8 +279,8 @@ module Sprockets
 
       class Manifest #:nodoc:
         def initialize(view)
-          @manifest = view.assets_manifest
-          raise ArgumentError, 'config.assets.resolve_with includes :manifest, but app.assets_manifest is nil' unless @manifest
+          @manifest = view.sprockets_manifest
+          raise ArgumentError, 'config.sprockets.resolve_with includes :manifest, but app.sprockets_manifest is nil' unless @manifest
         end
 
         def asset_path(path, digest, allow_non_precompiled = false)
@@ -290,7 +290,7 @@ module Sprockets
         end
 
         def digest_path(path, allow_non_precompiled = false)
-          @manifest.assets[path]
+          @manifest.sprockets[path]
         end
 
         def integrity(path)
@@ -313,8 +313,8 @@ module Sprockets
 
       class Environment #:nodoc:
         def initialize(view)
-          raise ArgumentError, 'config.assets.resolve_with includes :environment, but app.assets is nil' unless view.assets_environment
-          @env = view.assets_environment
+          raise ArgumentError, 'config.sprockets.resolve_with includes :environment, but app.sprockets is nil' unless view.sprockets_environment
+          @env = view.sprockets_environment
           @precompiled_asset_checker = view.precompiled_asset_checker
           @check_precompiled_asset = view.check_precompiled_asset
         end

@@ -9,7 +9,7 @@ module Sprockets
 
       def self.included(klass)
         klass.class_eval do
-          class_attribute :config, :assets_prefix, :digest_assets
+          class_attribute :config, :sprockets_prefix, :digest_sprockets
         end
       end
 
@@ -26,8 +26,8 @@ module Sprockets
         if asset_uri
           asset = link_asset(path)
           digest_path = asset.digest_path
-          path = digest_path if digest_assets
-          File.join(assets_prefix || "/", path)
+          path = digest_path if digest_sprockets
+          File.join(sprockets_prefix || "/", path)
         else
           super
         end
