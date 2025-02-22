@@ -132,7 +132,7 @@ module Sprockets
       # Override javascript tag helper to provide debugging support.
       #
       # Eventually will be deprecated and replaced by source maps.
-      def javascript_include_tag(*sources)
+      def sprockets_javascript_include_tag(*sources)
         options = sources.extract_options!.stringify_keys
         integrity = compute_integrity?(options)
 
@@ -141,19 +141,19 @@ module Sprockets
             if asset = lookup_debug_asset(source, type: :javascript)
               if asset.respond_to?(:to_a)
                 asset.to_a.map do |a|
-                  super(path_to_javascript(a.logical_path, debug: true), options)
+                  javascript_include_tag(path_to_javascript(a.logical_path, debug: true), options)
                 end
               else
-                super(path_to_javascript(asset.logical_path, debug: true), options)
+                javascript_include_tag(path_to_javascript(asset.logical_path, debug: true), options)
               end
             else
-              super(source, options)
+              javascript_include_tag(source, options)
             end
           }.flatten.uniq.join("\n").html_safe
         else
           sources.map { |source|
             options = options.merge('integrity' => asset_integrity(source, type: :javascript)) if integrity
-            super source, options
+            javascript_include_tag source, options
           }.join("\n").html_safe
         end
       end
@@ -161,7 +161,7 @@ module Sprockets
       # Override stylesheet tag helper to provide debugging support.
       #
       # Eventually will be deprecated and replaced by source maps.
-      def stylesheet_link_tag(*sources)
+      def sprockets_stylesheet_link_tag(*sources)
         options = sources.extract_options!.stringify_keys
         integrity = compute_integrity?(options)
 
@@ -170,19 +170,19 @@ module Sprockets
             if asset = lookup_debug_asset(source, type: :stylesheet)
               if asset.respond_to?(:to_a)
                 asset.to_a.map do |a|
-                  super(path_to_stylesheet(a.logical_path, debug: true), options)
+                  stylesheet_link_tag(path_to_stylesheet(a.logical_path, debug: true), options)
                 end
               else
-                super(path_to_stylesheet(asset.logical_path, debug: true), options)
+                stylesheet_link_tag(path_to_stylesheet(asset.logical_path, debug: true), options)
               end
             else
-              super(source, options)
+              stylesheet_link_tag(source, options)
             end
           }.flatten.uniq.join("\n").html_safe
         else
           sources.map { |source|
             options = options.merge('integrity' => asset_integrity(source, type: :stylesheet)) if integrity
-            super source, options
+            stylesheet_link_tag source, options
           }.join("\n").html_safe
         end
       end
