@@ -86,12 +86,6 @@ module Sprockets
       end
     end
 
-    ::Rails::Engine.initializer :append_sprockets_path, :group => :all do |app|
-      app.config.sprockets.paths.unshift(*paths["vendor/sprockets"].existent_directories)
-      app.config.sprockets.paths.unshift(*paths["lib/sprockets"].existent_directories)
-      app.config.sprockets.paths.unshift(*paths["app/sprockets"].existent_directories)
-    end
-
     config.sprockets = OrderedOptions.new
     config.sprockets._blocks                    = []
     config.sprockets.paths                      = []
